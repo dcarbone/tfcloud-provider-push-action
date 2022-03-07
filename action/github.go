@@ -5,11 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/google/go-github/v43/github"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/rs/zerolog"
-	"regexp"
-	"strings"
 )
 
 const (
