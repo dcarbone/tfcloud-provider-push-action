@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	GithubRequestTTLDefault = "5s"
+	GithubRequestTTLDefault  = "5s"
+	GithubDownloadTTLDefault = "5m"
 
 	TFAddressDefault           = "https://app.terraform.io"
 	TFRegistryNameDefault      = "private"
@@ -31,6 +32,7 @@ const (
 	EnvGithubRepository      = "GITHUB_REPOSITORY"
 	EnvGithubRepositoryOwner = "GITHUB_REPOSITORY_OWNER"
 	EnvGithubRequestTTL      = "GITHUB_REQUEST_TTL"
+	EnvGithubDownloadTTL     = "GITHUB_DOWNLOAD_TTL"
 
 	EnvTFAddress           = "TF_ADDRESS"
 	EnvTFToken             = "TF_TOKEN"
@@ -49,6 +51,7 @@ type Config struct {
 	GithubRepository      string
 	GithubRepositoryOwner string
 	GithubRequestTTL      string
+	GithubDownloadTTL     string
 
 	TFAddress           string
 	TFToken             string
@@ -61,7 +64,8 @@ type Config struct {
 	TFRequestTTL        string
 	TFUploadTTL         string
 
-	githubRequestTTL time.Duration
+	githubRequestTTL  time.Duration
+	githubDownloadTTL time.Duration
 
 	tfProviderPlatforms []string
 	tfRequestTTL        time.Duration
@@ -80,6 +84,10 @@ func (c Config) ghRequestContext(ctx context.Context) (context.Context, context.
 	return context.WithTimeout(ctx, c.githubRequestTTL)
 }
 
+func (c Config) ghDownloadContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, c.githubDownloadTTL)
+}
+
 func (c Config) tfRequestContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, c.tfRequestTTL)
 }
@@ -91,6 +99,7 @@ func (c Config) tfUploadContext(ctx context.Context) (context.Context, context.C
 func defaultConfig() *Config {
 	c := Config{
 		GithubRequestTTL:    GithubRequestTTLDefault,
+		GithubDownloadTTL:   GithubDownloadTTLDefault,
 		TFAddress:           TFAddressDefault,
 		TFRegistryName:      TFRegistryNameDefault,
 		TFProviderPlatforms: TFProviderPlatformsDefault,
@@ -114,6 +123,7 @@ func main() {
 		EnvGithubRepository:      &cfg.GithubRepository,
 		EnvGithubRepositoryOwner: &cfg.GithubRepositoryOwner,
 		EnvGithubRequestTTL:      &cfg.GithubRequestTTL,
+		EnvGithubDownloadTTL:     &cfg.GithubDownloadTTL,
 
 		EnvTFAddress:           &cfg.TFAddress,
 		EnvTFToken:             &cfg.TFToken,
@@ -131,13 +141,21 @@ func main() {
 		v = strings.TrimSpace(v)
 		if !ok || v == "" {
 			if *vPtr == "" {
-				panic(fmt.Sprintf("Environment variable %q is required", envName))
+				err = multierror.Append(err, fmt.Errorf("missing required environment variable: %q", envName))
 			}
-			//os.Exit(0)
 		} else {
 			*vPtr = v
 		}
 	}
+
+	if me, ok := err.(*multierror.Error); ok && me.Len() > 0 {
+		for _, e := range me.Errors {
+			fmt.Println(e.Error())
+		}
+		os.Exit(1)
+	}
+
+	err = nil
 
 	log := newLogger(cfg)
 
@@ -323,7 +341,7 @@ func uploadProviderBinary(
 
 	log.Info().Msg("Preparing to upload provider binary...")
 
-	ctx, cancel = cfg.ghRequestContext(ctx)
+	ctx, cancel = cfg.ghDownloadContext(ctx)
 	defer cancel()
 	rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), *pa.Asset.ID, cleanhttp.DefaultClient())
 	if rdr != nil {
