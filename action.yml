@@ -16,6 +16,9 @@ inputs:
   tf-token:
     description: "Terraform API token"
     required: true
+  tf-gpg-key-id:
+    description: "ID of GPG key used to sign provider binaries"
+    required: true
   tf-registry-name:
     description: "Name of registry (either \"public\" or \"private\")"
     default: "private"

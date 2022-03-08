@@ -36,6 +36,7 @@ const (
 
 	EnvTFAddress           = "TF_ADDRESS"
 	EnvTFToken             = "TF_TOKEN"
+	EnvTFGPGKeyID          = "TF_GPG_KEY_ID"
 	EnvTFRegistryName      = "TF_REGISTRY_NAME"
 	EnvTFOrganizationName  = "TF_ORGANIZATION_NAME"
 	EnvTFNamespace         = "TF_NAMESPACE"
@@ -127,6 +128,7 @@ func main() {
 
 		EnvTFAddress:           &cfg.TFAddress,
 		EnvTFToken:             &cfg.TFToken,
+		EnvTFGPGKeyID:          &cfg.TFGPGKeyID,
 		EnvTFRegistryName:      &cfg.TFRegistryName,
 		EnvTFOrganizationName:  &cfg.TFOrganizationName,
 		EnvTFNamespace:         &cfg.TFNamespace,
