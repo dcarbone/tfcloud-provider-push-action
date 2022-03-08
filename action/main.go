@@ -1,15 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/go-github/v43/github"
+	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-multierror"
 	"github.com/rs/zerolog"
 )
 
@@ -175,6 +179,8 @@ func main() {
 
 	cancel()
 
+	log.Info().Msg("All done.")
+
 	os.Exit(exitCode)
 }
 
@@ -218,4 +224,128 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 
 	log.Info().Msg("Provider version created")
 
+	fileData := TFFileUploadRequest{
+		File:        bytes.NewBuffer(rc.Shasum.Bytes),
+		Destination: pv.Data.Links.ShasumsUpload,
+		ContentType: binaryOctetStream,
+		Filename:    rc.Shasum.Filename,
+	}
+
+	log.Debug().Msgf("Attempting to upload %q file to %q...", rc.Shasum.Filename, pv.Data.Links.ShasumsUpload)
+	ctx, cancel = cfg.tfUploadContext(ctx)
+	defer cancel()
+	if err = tfc.UploadsClient().UploadFile(ctx, fileData); err != nil {
+		err = fmt.Errorf("error uploading %s file: %w", rc.Shasum.Filename, err)
+		return
+	}
+
+	fileData = TFFileUploadRequest{
+		File:        bytes.NewBuffer(rc.ShasumSig.Bytes),
+		Destination: pv.Data.Links.ShasumsSigUpload,
+		ContentType: binaryOctetStream,
+		Filename:    rc.ShasumSig.Filename,
+	}
+
+	log.Debug().Msgf("Attempting to upload %q file to %q...", rc.ShasumSig.Filename, pv.Data.Links.ShasumsSigUpload)
+	ctx, cancel = cfg.tfUploadContext(ctx)
+	defer cancel()
+	if err = tfc.UploadsClient().UploadFile(ctx, fileData); err != nil {
+		err = fmt.Errorf("error uploading %q file: %w", rc.ShasumSig.Filename, err)
+		return
+	}
+
+	log.Info().Msgf("Files %q and %q uploaded successfully", rc.Shasum.Filename, rc.ShasumSig.Filename)
+	log.Info().Msgf("Preparing %d binary uploads...", len(rc.ProviderArtifacts))
+
+	// todo: if i were a smart man, i could do this with just the channel.
+	wg := new(sync.WaitGroup)
+	wg.Add(len(rc.ProviderArtifacts))
+	errc := make(chan error, len(rc.ProviderArtifacts))
+	defer close(errc)
+
+	for _, pa := range rc.ProviderArtifacts {
+		log := log.With().Str("provider-artifact", *pa.Asset.Name).Logger()
+		go uploadProviderBinary(ctx, log, tfc, ghc, pa, cfg, wg, errc)
+	}
+
+	wg.Wait()
+
+	for uploadErr := range errc {
+		if uploadErr != nil {
+			log.Error().Err(err).Msg("Error during binary upload")
+			err = multierror.Append(err, uploadErr)
+		}
+	}
+}
+
+func uploadProviderBinary(
+	ctx context.Context,
+	log zerolog.Logger,
+	tfc *TFClient,
+	ghc *github.Client,
+	pa ProviderArtifact,
+	cfg *Config,
+	wg *sync.WaitGroup,
+	errc chan<- error,
+) {
+
+	var err error
+
+	// queue up cleanup
+	defer func() {
+		wg.Done()
+		errc <- err
+	}()
+
+	log.Info().Msg("Creating provider version platform...")
+
+	pvfc := NewTFCreateProviderVersionPlatformRequest(
+		pa.ShasumFileEntry.OS,
+		pa.ShasumFileEntry.Arch,
+		pa.ShasumFileEntry.Shasum,
+		pa.ShasumFileEntry.Filename,
+	)
+	ctx, cancel := cfg.tfRequestContext(ctx)
+	defer cancel()
+	pvf, err := tfc.ProviderClient().CreateProviderVersionPlatform(
+		ctx,
+		cfg.TFOrganizationName,
+		cfg.TFRegistryName,
+		cfg.TFNamespace,
+		cfg.TFProviderName,
+		pa.ShasumFileEntry.Version,
+		pvfc,
+	)
+	if err != nil {
+		err = fmt.Errorf("error creating provider version platform: %w", err)
+		return
+	}
+
+	log.Info().Msg("Preparing to upload provider binary...")
+
+	ctx, cancel = cfg.ghRequestContext(ctx)
+	defer cancel()
+	rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), *pa.Asset.ID, cleanhttp.DefaultClient())
+	if rdr != nil {
+		defer drainReader(rdr)
+	}
+	if err != nil {
+		err = fmt.Errorf("error initiating download of release asset %q: %w", pa.ShasumFileEntry.Filename, err)
+		return
+	}
+
+	fileData := TFFileUploadRequest{
+		File:        rdr,
+		Destination: pvf.Data.Links.ProviderBinaryUpload,
+		ContentType: binaryOctetStream,
+		Filename:    pa.ShasumFileEntry.Filename,
+	}
+	ctx, cancel = cfg.tfUploadContext(ctx)
+	defer cancel()
+	if err = tfc.UploadsClient().UploadFile(ctx, fileData); err != nil {
+		err = fmt.Errorf("error uploading provider binary %q: %w", pa.ShasumFileEntry.Filename, err)
+		return
+	}
+
+	log.Info().Msg("Provider binary successfully uploaded!")
 }

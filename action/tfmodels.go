@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -10,6 +11,13 @@ const (
 	tfRequestTypeRegistryProviderVersions         = "registry-provider-versions"
 	tfRequestTypeRegistryProviderVersionPlatforms = "registry-provider-version-platforms"
 )
+
+type TFFileUploadRequest struct {
+	File        io.Reader
+	Destination string
+	ContentType string
+	Filename    string
+}
 
 type TFCloudAPIErrorError struct {
 	Status string                 `json:"status"`

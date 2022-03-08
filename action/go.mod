@@ -4,8 +4,11 @@ go 1.17
 
 require (
 	github.com/hashicorp/go-cleanhttp v0.5.2
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/rs/zerolog v1.26.1
 )
+
+require github.com/hashicorp/errwrap v1.1.0 // indirect
 
 require (
 	github.com/google/go-github/v43 v43.0.0

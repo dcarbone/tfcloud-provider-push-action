@@ -15,13 +15,15 @@ import (
 )
 
 const (
-	headerAccept        = "Accept"
-	headerAuthorization = "Authorization"
-	headerContentType   = "Content-Type"
+	headerAccept             = "Accept"
+	headerAuthorization      = "Authorization"
+	headerContentDisposition = "Content-Disposition"
+	headerContentType        = "Content-Type"
 
 	applicationVNDAPIJSON = "application/vnd.api+json"
 	applicationJSON       = "application/json"
 	binaryOctetStream     = "binary/octet-stream"
+	attachmentFilenameFmt = "attachment; filename=%q"
 
 	pathAPI               = "api"
 	pathOrganizations     = "organizations"
@@ -199,11 +201,13 @@ func (tc *TFClient) UploadsClient() *TFUploadsClient {
 	return &TFUploadsClient{m: tc.m.copy(cleanhttp.DefaultClient())}
 }
 
-func (tc *TFUploadsClient) UploadFile(ctx context.Context, uploadURL, filename string, fileData io.Reader) error {
-	req, err := tc.m.buildRequest(ctx, http.MethodPut, uploadURL, nil, fileData)
+func (tc *TFUploadsClient) UploadFile(ctx context.Context, data TFFileUploadRequest) error {
+	req, err := tc.m.buildRequest(ctx, http.MethodPut, data.Destination, nil, data.File)
 	if err != nil {
 		return err
 	}
+	req.Header.Set(headerContentType, data.ContentType)
+	req.Header.Set(headerContentDisposition, fmt.Sprintf(attachmentFilenameFmt, data.Filename))
 	resp, err := tc.m.do(req)
 	return handleResponse(resp, err, nil, http.StatusOK)
 }
