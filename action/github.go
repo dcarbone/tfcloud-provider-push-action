@@ -25,7 +25,7 @@ var (
 	ParseShasumLineRe = regexp.MustCompile("([^\\s]+)\\s+(.+_([0-9]+\\.[0-9]+\\.[0-9]+)_([^_]+)_([^.]+)\\.zip)$")
 )
 
-func NewGithubClient(cfg *Config) (*github.Client, error) {
+func NewGithubClient(_ *Config) (*github.Client, error) {
 	ghc := github.NewClient(cleanhttp.DefaultPooledClient())
 
 	return ghc, nil
