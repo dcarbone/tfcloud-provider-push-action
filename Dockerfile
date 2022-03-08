@@ -14,8 +14,11 @@ RUN apk add --update --no-cache \
 
 RUN adduser -g "TFCloud Provider Push Action Guy" tfcpaguy -D -H -s /bin/false
 
-COPY --chmod=500 --chown=tfcpaguy --from=build  /tmp/build/action/tfcloud-provider-push-action /tfcloud-provider-push-action
-COPY --chmod=500 --chown=tfcpaguy               scripts/entrypoint.sh /entrypoint.sh
+COPY --from=build  /tmp/build/action/tfcloud-provider-push-action /tfcloud-provider-push-action
+COPY               scripts/entrypoint.sh /entrypoint.sh
+
+RUN chown tfcpaguy:tfcpaguy /entrypoint.sh /tfcloud-provider-push-action
+RUN chmod 500 /entrypoint.sh /tfcloud-provider-push-action
 
 USER tfcpaguy
 
