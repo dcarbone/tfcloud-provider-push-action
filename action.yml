@@ -1,62 +1,6 @@
 name: "Terraform Cloud Provider Push"
 description: "Very quickly made action to push goreleaser assets from a Github release to a private Terraform Cloud provider registry"
-inputs:
-  github-request-ttl:
-    description: "Maximum execution time to allow for Github api requests"
-    default: "5s"
-    required: false
-  github-download-ttl:
-    description: "Maximum execution time to allow for binary downloads from Github"
-    default: "5m"
-    required: false
-  tf-address:
-    description: "Terraform address"
-    default: "https://app.terraform.io"
-    required: false
-  tf-token:
-    description: "Terraform API token"
-    required: true
-  tf-gpg-key-id:
-    description: "ID of GPG key used to sign provider binaries"
-    required: true
-  tf-registry-name:
-    description: "Name of registry (either \"public\" or \"private\")"
-    default: "private"
-    required: false
-  tf-org-name:
-    description: "Terraform organization name"
-    required: true
-  tf-namespace:
-    description: "Terraform namespace"
-    required: true
-  tf-provider-name:
-    description: "Name of provider being pushed"
-    required: true
-  tf-provider-platforms:
-    description: "Comma-separated list of platform versions supported by provider"
-    default: "6.0"
-    required: false
-  tf-request-ttl:
-    description: "Maximum execution time to allow for Terraform API requests"
-    default: "5s"
-    required: false
-  tf-upload-ttl:
-    description: "Maximum execution time to allow for binary uploads to Terraform"
-    default: "5m"
-    required: false
 
 runs:
   using: docker
   image: Dockerfile
-  env:
-    GITHUB_REQUEST_TTL: ${{ inputs.github-request-ttl }}
-    GITHUB_DOWNLOAD_TTL: ${{ inputs.github-download-ttl }}
-    TF_ADDRESS: ${{ inputs.tf-address }}
-    TF_TOKEN: ${{ inputs.tf-token }}
-    TF_REGISTRY_NAME: ${{ inputs.tf-registry-name }}
-    TF_ORGANIZATION_NAME: ${{ inputs.tf-org-name }}
-    TF_NAMESPACE: ${{ inputs.tf-namespace }}
-    TF_PROVIDER_NAME: ${{ inputs.tf-provider-name }}
-    TF_PROVIDER_PLATFORMS: ${{ inputs.tf-provider-platforms }}
-    TF_REQUEST_TTL: ${{ inputs.tf-request-ttl }}
-    TF_UPLOAD_TTL: ${{ inputs.tf-upload-ttl }}
