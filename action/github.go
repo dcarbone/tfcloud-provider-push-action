@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -115,14 +116,17 @@ func parseShasumFile(ctx context.Context, log zerolog.Logger, ghc *github.Client
 	scanner.Split(bufio.ScanLines)
 
 	for scanner.Scan() {
-		b := scanner.Bytes()
-		log.Debug().Msgf("Parsing sumfile line: %q", string(b))
-		entry, err := shasumFileEntryFromLine(b)
-		if err != nil {
-			return ShasumFile{}, err
+		line := scanner.Bytes()
+
+		if bytes.HasSuffix(line, []byte(".zip")) {
+			entry, err := shasumFileEntryFromLine(line)
+			if err != nil {
+				return ShasumFile{}, err
+			}
+			sumFile.Entries = append(sumFile.Entries, entry)
 		}
-		sumFile.Bytes = append(sumFile.Bytes, append(b, '\n')...)
-		sumFile.Entries = append(sumFile.Entries, entry)
+
+		sumFile.Bytes = append(sumFile.Bytes, append(line, '\n')...)
 	}
 
 	return sumFile, nil
