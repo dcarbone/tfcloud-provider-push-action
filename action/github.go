@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-github/v43/github"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/rs/zerolog"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -25,8 +26,13 @@ var (
 	ParseShasumLineRe = regexp.MustCompile("([^\\s]+)\\s+(.+_([0-9]+\\.[0-9]+\\.[0-9]+)_([^_]+)_([^.]+)\\.zip)$")
 )
 
-func NewGithubClient(_ *Config) (*github.Client, error) {
-	ghc := github.NewClient(cleanhttp.DefaultPooledClient())
+func NewGithubClient(cfg *Config) (*github.Client, error) {
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: cfg.GithubToken},
+	)
+
+	ghc := github.NewClient(oauth2.NewClient(ctx, ts))
 
 	return ghc, nil
 }
