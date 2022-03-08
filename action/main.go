@@ -86,6 +86,7 @@ func (c Config) tfUploadContext(ctx context.Context) (context.Context, context.C
 
 func defaultConfig() *Config {
 	c := Config{
+		GithubRequestTTL:    GithubRequestTTLDefault,
 		TFAddress:           TFAddressDefault,
 		TFRegistryName:      TFRegistryNameDefault,
 		TFProviderPlatforms: TFProviderPlatformsDefault,
@@ -198,16 +199,23 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 		return
 	}
 
-	log.Debug().Interface("release-meta", releaseMeta).Msg("Release metadata retrieved")
+	rc, err := getReleaseContext(ctx, log, ghc, cfg)
+	if err != nil {
+		err = fmt.Errorf("error parsing release context: %w", err)
+		return
+	}
 
-	pvCreate := NewTFCreateProviderVersionRequest(cfg.providerVersion(), cfg.TFGPGKeyID, cfg.tfProviderPlatforms)
+	log.Debug().Msg("Release context parsed")
+
+	pvc := NewTFCreateProviderVersionRequest(cfg.providerVersion(), cfg.TFGPGKeyID, cfg.tfProviderPlatforms)
 	ctx, cancel := cfg.tfRequestContext(ctx)
 	defer cancel()
-	provVersion, err := tfc.ProviderClient().CreateProviderVersion(ctx, cfg.TFOrganizationName, cfg.TFRegistryName, cfg.TFNamespace, cfg.TFProviderName, pvCreate)
+	pv, err := tfc.ProviderClient().CreateProviderVersion(ctx, cfg.TFOrganizationName, cfg.TFRegistryName, cfg.TFNamespace, cfg.TFProviderName, pvc)
 	if err != nil {
 		err = fmt.Errorf("error creating new provider version: %w", err)
 		return
 	}
 
 	log.Info().Msg("Provider version created")
+
 }

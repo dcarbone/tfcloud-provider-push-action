@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strings"
 
@@ -38,6 +39,37 @@ type ShasumFileEntry struct {
 	Arch     string
 }
 
+type ShasumFile struct {
+	Filename string
+	Bytes    []byte
+	Entries  []ShasumFileEntry
+}
+
+func (sf ShasumFile) entryByFilename(fname string) (ShasumFileEntry, bool) {
+	for _, fe := range sf.Entries {
+		if fe.Filename == fname {
+			return fe, true
+		}
+	}
+	return ShasumFileEntry{}, false
+}
+
+type ShasumSigFile struct {
+	Filename string
+	Bytes    []byte
+}
+
+type ProviderArtifact struct {
+	ShasumFileEntry ShasumFileEntry
+	Asset           *github.ReleaseAsset
+}
+
+type GithubReleaseContext struct {
+	Shasum            ShasumFile
+	ShasumSig         ShasumSigFile
+	ProviderArtifacts []ProviderArtifact
+}
+
 func shasumFileEntryFromLine(line []byte) (ShasumFileEntry, error) {
 
 	matches := ParseShasumLineRe.FindSubmatch(line)
@@ -56,36 +88,12 @@ func shasumFileEntryFromLine(line []byte) (ShasumFileEntry, error) {
 	return entry, nil
 }
 
-type ShasumFile struct {
-	Filename string
-	Bytes    []byte
-	Entries  []ShasumFileEntry
-}
-
-type ShasumSigFile struct {
-	Filename string
-}
-
-type ProviderBinaryArtifact struct {
-	Shasum   string
-	Filename string
-	Asset    *github.ReleaseAsset
-}
-
-type GithubReleaseContext struct {
-	Shasum       ShasumFile
-	ShasumSig    ShasumSigFile
-	BinaryAssets []ProviderBinaryArtifact
-}
-
 func parseShasumFile(ctx context.Context, log zerolog.Logger, ghc *github.Client, cfg *Config, asset *github.ReleaseAsset) (ShasumFile, error) {
 	ctx, cancel := cfg.ghRequestContext(ctx)
 	defer cancel()
 	rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), *asset.ID, cleanhttp.DefaultClient())
 	if rdr != nil {
-		defer func() {
-			_ = rdr.Close()
-		}()
+		defer drainReader(rdr)
 	}
 	if err != nil {
 		return ShasumFile{}, fmt.Errorf("error downloading shasum file asset: %w", err)
@@ -112,6 +120,28 @@ func parseShasumFile(ctx context.Context, log zerolog.Logger, ghc *github.Client
 	}
 
 	return sumFile, nil
+}
+
+func fetchShasumSigFile(ctx context.Context, _ zerolog.Logger, ghc *github.Client, cfg *Config, asset *github.ReleaseAsset) (ShasumSigFile, error) {
+	ctx, cancel := cfg.ghRequestContext(ctx)
+	defer cancel()
+	rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.GithubRepositoryOwner, *asset.ID, cleanhttp.DefaultClient())
+	if rdr != nil {
+		defer drainReader(rdr)
+	}
+	if err != nil {
+		return ShasumSigFile{}, err
+	}
+
+	sigFile := ShasumSigFile{
+		Filename: *asset.Name,
+	}
+
+	if sigFile.Bytes, err = ioutil.ReadAll(rdr); err != nil {
+		return ShasumSigFile{}, fmt.Errorf("error reading body bytes: %w", err)
+	}
+
+	return sigFile, nil
 }
 
 func getReleaseContext(ctx context.Context, log zerolog.Logger, ghc *github.Client, cfg *Config) (GithubReleaseContext, error) {
@@ -144,7 +174,11 @@ func getReleaseContext(ctx context.Context, log zerolog.Logger, ghc *github.Clie
 			}
 		} else if strings.HasSuffix(*asset.Name, shasumSigSuffix) {
 			log.Info().Msg("Found shasum sig file")
-			ga.ShasumSig = asset
+			if sigFile, err := fetchShasumSigFile(ctx, log, ghc, cfg, asset); err != nil {
+				return GithubReleaseContext{}, err
+			} else {
+				rc.ShasumSig = sigFile
+			}
 		} else if strings.HasPrefix(*asset.Name, sourceCodeArtifactName) {
 			// skip these
 			continue
@@ -153,19 +187,30 @@ func getReleaseContext(ctx context.Context, log zerolog.Logger, ghc *github.Clie
 			binaryArtifacts = append(binaryArtifacts, asset)
 		}
 	}
-}
 
-func parseReleaseAssets(ctx context.Context, log zerolog.Logger, rel *github.RepositoryRelease) (GoreleaserAssets, error) {
-
-	if len(binaryArtifacts) == 0 {
-		return ga, errors.New("zero binary artifacts found in release")
+	if l := len(binaryArtifacts); l == 0 {
+		return GithubReleaseContext{}, errors.New("zero binary artifacts found in release")
+	} else {
+		log.Info().Msgf("Found %d binary artifacts", l)
 	}
 
-	parsedSums, err := fetchAndParseShasumFile(ctx, ga.Shasum)
-
-	log.Info().Msgf("Found %d binary artifacts", len(binaryArtifacts))
+	rc.ProviderArtifacts = make([]ProviderArtifact, 0)
 
 	for _, ba := range binaryArtifacts {
-
+		log := log.With().Str("provider-artifact", *ba.Name).Logger()
+		if fe, ok := rc.Shasum.entryByFilename(*ba.Name); ok {
+			log.Debug().Msg("Found shasum entry")
+			rc.ProviderArtifacts = append(rc.ProviderArtifacts, ProviderArtifact{
+				ShasumFileEntry: fe,
+				Asset:           ba,
+			})
+		}
 	}
+
+	if len(rc.ProviderArtifacts) != len(binaryArtifacts) {
+		return GithubReleaseContext{},
+			fmt.Errorf("count mismatch: binaryArtifacts=%d; ProviderArtifacts=%d", len(rc.ProviderArtifacts), len(binaryArtifacts))
+	}
+
+	return rc, nil
 }

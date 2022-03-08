@@ -21,6 +21,7 @@ const (
 
 	applicationVNDAPIJSON = "application/vnd.api+json"
 	applicationJSON       = "application/json"
+	binaryOctetStream     = "binary/octet-stream"
 
 	pathAPI               = "api"
 	pathOrganizations     = "organizations"
@@ -198,8 +199,8 @@ func (tc *TFClient) UploadsClient() *TFUploadsClient {
 	return &TFUploadsClient{m: tc.m.copy(cleanhttp.DefaultClient())}
 }
 
-func (tc *TFUploadsClient) UploadFile(ctx context.Context, uploadURL string, checksumFile io.Reader) error {
-	req, err := tc.m.buildRequest(ctx, http.MethodPut, uploadURL, nil, checksumFile)
+func (tc *TFUploadsClient) UploadFile(ctx context.Context, uploadURL, filename string, fileData io.Reader) error {
+	req, err := tc.m.buildRequest(ctx, http.MethodPut, uploadURL, nil, fileData)
 	if err != nil {
 		return err
 	}
