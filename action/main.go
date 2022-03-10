@@ -345,7 +345,7 @@ func uploadProviderBinary(
 
 	ctx, cancel = cfg.ghDownloadContext(ctx)
 	defer cancel()
-	rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), *pa.Asset.ID, cleanhttp.DefaultClient())
+	rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), pa.Asset.GetID(), cleanhttp.DefaultClient())
 	if rdr != nil {
 		defer drainReader(rdr)
 	}

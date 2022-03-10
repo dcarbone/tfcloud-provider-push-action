@@ -95,7 +95,7 @@ func shasumFileEntryFromLine(line []byte) (ShasumFileEntry, error) {
 	return entry, nil
 }
 
-func parseShasumFile(ctx context.Context, log zerolog.Logger, ghc *github.Client, cfg *Config, asset *github.ReleaseAsset) (ShasumFile, error) {
+func parseShasumFile(ctx context.Context, _ zerolog.Logger, ghc *github.Client, cfg *Config, asset *github.ReleaseAsset) (ShasumFile, error) {
 	ctx, cancel := cfg.ghRequestContext(ctx)
 	defer cancel()
 	rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), *asset.ID, cleanhttp.DefaultClient())
@@ -135,7 +135,7 @@ func parseShasumFile(ctx context.Context, log zerolog.Logger, ghc *github.Client
 func fetchShasumSigFile(ctx context.Context, _ zerolog.Logger, ghc *github.Client, cfg *Config, asset *github.ReleaseAsset) (ShasumSigFile, error) {
 	ctx, cancel := cfg.ghRequestContext(ctx)
 	defer cancel()
-	rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.GithubRepositoryOwner, *asset.ID, cleanhttp.DefaultClient())
+	rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), *asset.ID, cleanhttp.DefaultClient())
 	if rdr != nil {
 		defer drainReader(rdr)
 	}
