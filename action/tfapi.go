@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 
 	"github.com/hashicorp/go-cleanhttp"
@@ -57,8 +56,8 @@ func (tm *tfClientMiddleware) copy(hc *http.Client) *tfClientMiddleware {
 	return tm2
 }
 
-func (tm *tfClientMiddleware) buildURL(bits ...string) string {
-	return fmt.Sprintf("%s/%s", tm.addr, path.Join(bits...))
+func (tm *tfClientMiddleware) buildURL(route string) string {
+	return fmt.Sprintf("%s/%s", tm.addr, route)
 }
 
 func (tm *tfClientMiddleware) buildRequest(ctx context.Context, method, routePath string, query url.Values, body interface{}) (*http.Request, error) {
@@ -129,7 +128,7 @@ func (tc *TFProviderClient) CreateProviderVersion(
 	provName string,
 	data TFCreateProviderVersionRequest,
 ) (*TFCreateProviderVersionResponse, error) {
-	route := buildPath(
+	route := buildRoute(
 		pathAPI,
 		pathV2,
 		pathOrganizations,
@@ -164,7 +163,7 @@ func (tc *TFProviderClient) CreateProviderVersionPlatform(
 	provVersion string,
 	data TFCreateProviderVersionPlatformRequest,
 ) (*TFCreateProviderVersionPlatformResponse, error) {
-	route := buildPath(
+	route := buildRoute(
 		pathAPI,
 		pathV2,
 		pathOrganizations,

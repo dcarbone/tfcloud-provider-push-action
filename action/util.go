@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -16,8 +17,8 @@ func setBearerToken(req *http.Request, token string) {
 	req.Header.Set(headerAuthorization, fmt.Sprintf(f, token))
 }
 
-func buildPath(parts ...interface{}) string {
-	out := ""
+func buildRoute(parts ...interface{}) string {
+	partStrs := make([]string, 0)
 	var v string
 	for _, p := range parts {
 		v = ""
@@ -33,12 +34,11 @@ func buildPath(parts ...interface{}) string {
 		default:
 			panic(fmt.Sprintf("no path part handler defined for type \"%T\" (%[1]v)", p))
 		}
-
 		if v != "" {
-			out = fmt.Sprintf("%s/%s", out, v)
+			partStrs = append(partStrs, v)
 		}
 	}
-	return out
+	return path.Join(partStrs...)
 }
 
 func drainReader(r io.Reader) {
