@@ -357,14 +357,12 @@ func uploadProviderBinary(
 
 	log.Info().Msg("Preparing to upload provider binary...")
 
-	{
-		ctx, cancel := cfg.ghDownloadContext(ctx)
-		defer cancel()
-		rdr, _, err = ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), pa.Asset.GetID(), cleanhttp.DefaultClient())
-		if err != nil {
-			err = fmt.Errorf("error initiating download of release asset %q: %w", pa.ShasumFileEntry.Filename, err)
-			return
-		}
+	dlctx, dlcancel := cfg.ghDownloadContext(ctx)
+	defer dlcancel()
+	rdr, _, err = ghc.Repositories.DownloadReleaseAsset(dlctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), pa.Asset.GetID(), cleanhttp.DefaultClient())
+	if err != nil {
+		err = fmt.Errorf("error initiating download of release asset %q: %w", pa.ShasumFileEntry.Filename, err)
+		return
 	}
 
 	if rdr != nil {
@@ -377,13 +375,11 @@ func uploadProviderBinary(
 		ContentType: binaryOctetStream,
 		Filename:    pa.ShasumFileEntry.Filename,
 	}
-	{
-		ctx, cancel := cfg.tfUploadContext(ctx)
-		defer cancel()
-		if err = tfc.UploadsClient().UploadFile(ctx, fileData); err != nil {
-			err = fmt.Errorf("error uploading provider binary %q: %w", pa.ShasumFileEntry.Filename, err)
-			return
-		}
+	ulctx, ulcancel := cfg.tfUploadContext(ctx)
+	defer ulcancel()
+	if err = tfc.UploadsClient().UploadFile(ulctx, fileData); err != nil {
+		err = fmt.Errorf("error uploading provider binary %q: %w", pa.ShasumFileEntry.Filename, err)
+		return
 	}
 
 	log.Info().Msg("Provider binary successfully uploaded!")
