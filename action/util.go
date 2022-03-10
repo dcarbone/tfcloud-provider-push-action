@@ -81,19 +81,18 @@ func generateUnexpectedResponseCodeError(resp *http.Response, expected int) erro
 // handleResponse is a helper func to reduce amount of repeated code in each api call.  will eventually
 // be expanded upon.
 func handleResponse(req *http.Request, resp *http.Response, respErr error, out interface{}, expectedCode int) error {
-	var err error
 	if resp != nil {
 		defer drainReader(resp.Body)
 	}
 	if respErr != nil {
-		return fmt.Errorf("error executing %q: %w", req.URL, respErr)
+		return fmt.Errorf("error executing %s %q: %w", req.Method, req.URL, respErr)
 	}
-	if err = requireHTTPCodes(resp, expectedCode); err != nil {
-		return fmt.Errorf("error executing %q: %w", req.URL, err)
+	if err := requireHTTPCodes(resp, expectedCode); err != nil {
+		return fmt.Errorf("error executing %s %q: %w", req.Method, req.URL, err)
 	}
 	if out != nil {
-		if err = json.NewDecoder(resp.Body).Decode(out); err != nil {
-			return fmt.Errorf("error executing %q: %w", req.URL, err)
+		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+			return fmt.Errorf("error executing %s %q: %w", req.Method, req.URL, err)
 		}
 	}
 	return nil
