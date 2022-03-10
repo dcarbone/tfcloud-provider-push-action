@@ -175,6 +175,10 @@ func main() {
 		log.Error().Msgf("Environment variable %q value %q is not parseable as time.Duration: %w", EnvTFUploadTTL, cfg.TFUploadTTL, err)
 		os.Exit(1)
 	}
+	if cfg.githubDownloadTTL, err = time.ParseDuration(cfg.GithubDownloadTTL); err != nil {
+		log.Error().Msgf("Environment variable %q value %q is not parseable as time.Duration: %w", EnvGithubDownloadTTL, cfg.GithubDownloadTTL, err)
+		os.Exit(1)
+	}
 
 	cfg.tfProviderPlatforms = strings.Split(cfg.TFProviderPlatforms, ",")
 
@@ -188,7 +192,6 @@ func main() {
 	case err := <-errChan:
 		if err != nil {
 			log.Error().Err(err).Msg("Error occurred during execution")
-			fmt.Println(err.Error())
 			exitCode = 1
 		}
 	case <-ctx.Done():
@@ -300,7 +303,7 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 
 	for uploadErr := range errc {
 		if uploadErr != nil {
-			log.Error().Err(err).Msg("Error during binary upload")
+			log.Error().Err(uploadErr).Msg("Error during binary upload")
 			err = multierror.Append(err, uploadErr)
 		}
 	}
