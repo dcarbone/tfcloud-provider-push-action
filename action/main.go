@@ -289,7 +289,6 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 	wg := new(sync.WaitGroup)
 	wg.Add(len(rc.ProviderArtifacts))
 	errc := make(chan error, len(rc.ProviderArtifacts))
-	defer close(errc)
 
 	for _, pa := range rc.ProviderArtifacts {
 		log := log.With().Str("provider-artifact", *pa.Asset.Name).Logger()
@@ -297,6 +296,7 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 	}
 
 	wg.Wait()
+	close(errc)
 
 	for uploadErr := range errc {
 		if uploadErr != nil {
@@ -325,8 +325,8 @@ func uploadProviderBinary(
 
 	// queue up cleanup
 	defer func() {
-		wg.Done()
 		errc <- err
+		wg.Done()
 	}()
 
 	log.Info().Msg("Creating provider version platform...")
