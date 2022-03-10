@@ -200,13 +200,8 @@ func (tc *TFClient) UploadsClient() *TFUploadsClient {
 	return &TFUploadsClient{m: tc.m.copy(cleanhttp.DefaultClient())}
 }
 
-func (tc *TFUploadsClient) UploadFile(ctx context.Context, data TFFileUploadRequest) error {
-	req, err := tc.m.buildRequest(ctx, http.MethodPut, data.Destination, nil, data.File)
-	if err != nil {
-		return err
-	}
-	req.Header.Set(headerContentType, data.ContentType)
-	req.Header.Set(headerContentDisposition, fmt.Sprintf(attachmentFilenameFmt, data.Filename))
-	resp, err := tc.m.do(req)
-	return handleResponse(req, resp, err, nil, http.StatusOK)
+func (tc *TFUploadsClient) UploadFile(_ context.Context, data TFFileUploadRequest) error {
+	resp, err := tc.m.hc.Post(data.Destination, data.ContentType, data.File)
+	u, _ := url.Parse(data.Destination)
+	return handleResponse(&http.Request{URL: u, Method: http.MethodPost}, resp, err, nil, http.StatusOK)
 }
