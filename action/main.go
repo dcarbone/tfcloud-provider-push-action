@@ -358,17 +358,17 @@ func uploadProviderBinary(
 	log.Info().Msg("Preparing to upload provider binary...")
 
 	{
-
 		ctx, cancel := cfg.ghDownloadContext(ctx)
 		defer cancel()
-		rdr, _, err := ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), pa.Asset.GetID(), cleanhttp.DefaultClient())
-		if rdr != nil {
-			defer drainReader(rdr)
-		}
+		rdr, _, err = ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), pa.Asset.GetID(), cleanhttp.DefaultClient())
 		if err != nil {
 			err = fmt.Errorf("error initiating download of release asset %q: %w", pa.ShasumFileEntry.Filename, err)
 			return
 		}
+	}
+
+	if rdr != nil {
+		defer drainReader(rdr)
 	}
 
 	fileData := TFFileUploadRequest{
