@@ -74,7 +74,7 @@ type Config struct {
 }
 
 func (c Config) providerVersion() string {
-	return strings.TrimSuffix(c.GithubRefName, "v")
+	return strings.TrimPrefix(c.GithubRefName, "v")
 }
 
 func (c Config) githubRepository() string {

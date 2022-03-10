@@ -92,6 +92,7 @@ func (tm *tfClientMiddleware) buildRequest(ctx context.Context, method, routePat
 
 func (tm *tfClientMiddleware) do(r *http.Request) (*http.Response, error) {
 	// todo: this abstraction is here as i plan to eventually move additional logic here.
+	fmt.Println("url: ", r.URL.String())
 	return tm.hc.Do(r)
 }
 

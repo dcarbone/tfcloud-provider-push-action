@@ -46,6 +46,14 @@ type ShasumFileEntry struct {
 	Arch     string
 }
 
+func (fe ShasumFileEntry) MarshalZerologObject(ev *zerolog.Event) {
+	ev.Str("shasum", fe.Shasum)
+	ev.Str("filename", fe.Filename)
+	ev.Str("version", fe.Version)
+	ev.Str("os", fe.OS)
+	ev.Str("arch", fe.Arch)
+}
+
 type ShasumFile struct {
 	Filename string
 	Bytes    []byte
@@ -209,7 +217,7 @@ func getReleaseContext(ctx context.Context, log zerolog.Logger, ghc *github.Clie
 	for _, ba := range binaryArtifacts {
 		log := log.With().Str("provider-artifact", *ba.Name).Logger()
 		if fe, ok := rc.Shasum.entryByFilename(*ba.Name); ok {
-			log.Debug().Msg("Found shasum entry")
+			log.Debug().Object("entry", fe).Msg("Found shasum entry")
 			rc.ProviderArtifacts = append(rc.ProviderArtifacts, ProviderArtifact{
 				ShasumFileEntry: fe,
 				Asset:           ba,
