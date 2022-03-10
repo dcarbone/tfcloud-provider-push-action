@@ -42,7 +42,7 @@ func newTFClientMiddleware(cfg *Config) (*tfClientMiddleware, error) {
 	tm := new(tfClientMiddleware)
 	tm.addr = strings.Trim(cfg.TFAddress, "/")
 	tm.bearerToken = cfg.TFToken
-	tm.hc = cleanhttp.DefaultPooledClient()
+	tm.hc = cleanhttp.DefaultClient()
 
 	return tm, nil
 }
