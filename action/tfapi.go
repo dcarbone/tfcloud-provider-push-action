@@ -71,11 +71,11 @@ func (tm *tfClientMiddleware) buildRequest(ctx context.Context, method, routePat
 		case []byte:
 			bodyRdr = bytes.NewBuffer(body.([]byte))
 		default:
-			buff := bytes.NewBuffer(nil)
-			if err := json.NewEncoder(buff).Encode(body); err != nil {
+			if b, err := json.Marshal(body); err != nil {
 				return nil, fmt.Errorf("error marshalling body: %w", err)
+			} else {
+				bodyRdr = bytes.NewBuffer(b)
 			}
-			bodyRdr = buff
 		}
 	}
 
