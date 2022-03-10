@@ -186,20 +186,19 @@ func main() {
 	select {
 	case err := <-errChan:
 		if err != nil {
+			log.Error().Err(err).Msg("Error occurred during execution")
 			fmt.Println(err.Error())
 			exitCode = 1
 		}
 	case <-ctx.Done():
 		err := ctx.Err()
 		if errors.Is(err, context.DeadlineExceeded) {
-			fmt.Println(err.Error())
+			log.Error().Err(err).Msg("Execution terminated")
 			exitCode = 1
 		}
 	}
 
 	cancel()
-
-	log.Info().Msg("All done.")
 
 	os.Exit(exitCode)
 }

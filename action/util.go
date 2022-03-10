@@ -61,7 +61,7 @@ func requireHTTPCodes(resp *http.Response, httpCode int) error {
 func generateUnexpectedResponseCodeError(resp *http.Response, expected int) error {
 	var buf bytes.Buffer
 	_, _ = io.Copy(&buf, resp.Body)
-	drainReader(resp.Body)
+	defer drainReader(resp.Body)
 
 	// attempt to unmarshal api response error.  don't particularly care if we can't.
 	tfcErr := new(TFCloudAPIError)
