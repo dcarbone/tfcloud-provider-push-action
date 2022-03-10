@@ -92,7 +92,6 @@ func (tm *tfClientMiddleware) buildRequest(ctx context.Context, method, routePat
 
 func (tm *tfClientMiddleware) do(r *http.Request) (*http.Response, error) {
 	// todo: this abstraction is here as i plan to eventually move additional logic here.
-	fmt.Println("url: ", r.URL.String())
 	return tm.hc.Do(r)
 }
 
@@ -150,7 +149,7 @@ func (tc *TFProviderClient) CreateProviderVersion(
 	req.Header.Set(headerAccept, applicationJSON)
 	resp, err := tc.m.do(req)
 	out := TFCreateProviderVersionResponse{}
-	if err = handleResponse(resp, err, &out, http.StatusCreated); err != nil {
+	if err = handleResponse(req, resp, err, &out, http.StatusCreated); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -187,7 +186,7 @@ func (tc *TFProviderClient) CreateProviderVersionPlatform(
 	req.Header.Set(headerAccept, applicationJSON)
 	resp, err := tc.m.do(req)
 	out := TFCreateProviderVersionPlatformResponse{}
-	if err = handleResponse(resp, err, &out, http.StatusCreated); err != nil {
+	if err = handleResponse(req, resp, err, &out, http.StatusCreated); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -210,5 +209,5 @@ func (tc *TFUploadsClient) UploadFile(ctx context.Context, data TFFileUploadRequ
 	req.Header.Set(headerContentType, data.ContentType)
 	req.Header.Set(headerContentDisposition, fmt.Sprintf(attachmentFilenameFmt, data.Filename))
 	resp, err := tc.m.do(req)
-	return handleResponse(resp, err, nil, http.StatusOK)
+	return handleResponse(req, resp, err, nil, http.StatusOK)
 }
