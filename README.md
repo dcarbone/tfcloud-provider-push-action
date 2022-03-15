@@ -26,7 +26,7 @@ permissions.  This can either be a Team or User token.
 
 Personally, I recommend creating a shared `Robots` team with a restricted set of permissions, and either creating a
 token for that team or create a robot user, adding them to the team, and creating a token on that user.  Do whatever
-makes sense for your team.
+makes sense for your org.
 
 This token will be referred to below as the "robot" token.
 
