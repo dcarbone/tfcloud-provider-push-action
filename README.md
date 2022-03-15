@@ -54,7 +54,7 @@ or whatever you want to execute the
 Save the response from `key-id` in a secure location.  You must be able to provide the `key-id` value when running
 this action.
 
-## 4. Release Structure
+## 4. Release Assets Structure
 Currently this action expects to be triggered by the creation of a Github Release with a specific list of attached
 assets.
 
@@ -144,3 +144,56 @@ terraform-provider-{{ provider name }}_{{ semver }}_SHA256SUMS.sig
 ```
 
 This file must be a gpg blob signature of the `SHA256SUMS` file using the GPG key you created earlier.
+
+## 5. Action Configuration
+This action is configured via environment variables.
+
+### Environment Variables
+
+| Name                      | Purpose                                                                                                           | Required | Default                      |
+|---------------------------|-------------------------------------------------------------------------------------------------------------------|----------|------------------------------|
+| `GITHUB_TOKEN`            | Github API token. This is created automatically when run and is accessible using `${{ secrets.GITHUB_TOKEN }}`    | yes      |                              |
+| `GITHUB_REF_NAME`         | Automatically provided by [Github](https://docs.github.com/en/actions/learn-github-actions/environment-variables) | yes      |                              |
+| `GITHUB_REPOSITORY`       | Automatically provided by [Github](https://docs.github.com/en/actions/learn-github-actions/environment-variables) | yes      |                              |
+| `GITHUB_REPOSITORY_OWNER` | Automatically provided by [Github](https://docs.github.com/en/actions/learn-github-actions/environment-variables) | yes      |                              |
+| `GITHUB_REQUEST_TTL`      | Maximum TTL for Github API requests                                                                               | no       | `"5s"`                       |
+| `GITHUB_DOWNLOAD_TTL`     | Maximum TTL for Github release asset download requests                                                            | no       | `"5m"`                       |
+| `TF_ADDRESS`              | Terraform cloud address                                                                                           | no       | `"https://app.terraform.io"` |
+| `TF_TOKEN`                | Robot API token created earlier                                                                                   | yes      |                              |
+| `TF_GPG_KEY_ID`           | Value from `key-id` field returned when registering your GPG key with Terraform Cloud                             | yes      |                              |
+| `TF_REGISTRY_NAME`        | Name of registry to push provider to                                                                              | no       | `"private"`                  |
+| `TF_ORGANIZATION_NAME`    | Name of your Terraform organization                                                                               | yes      |                              |
+| `TF_NAMESPACE`            | Namespace for Provider.                                                                                           | yes      |                              |
+| `TF_PROVIDER_NAME`        | Name of your provider.  Must match binary name prefix exactly.                                                    | yes      |                              |
+| `TF_PROVIDER_PLATFORMS`   | Comma-separate list of versions supported by your provider.                                                       | no       | `"6.0"`                      |
+| `TF_REQUEST_TTL`          | Maximum TTL for Terraform Cloud API requests                                                                      | no       | `"5s"`                       |
+| `TF_UPLOAD_TTL`           | Maximum TTL for Terraform Cloud artifact uploads (including binaries)                                             | no       | `"5m"`                       |
+
+### Example Config
+
+```yaml
+name: Release
+
+# This causes the job only to run when a new tag with a prefix of `v` is pushed to github
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      # you may perform whatever release artifact creation steps you like here
+      
+      - uses: dcarbone/tfcloud-provider-push-action@v0.1.0 # version should be latest release
+        if: ${{ success() }} # only run if previous steps succeeded
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # this is created for you by Github
+          TF_TOKEN: ${{ secrets.TFCLOUD_API_KEY }} # this assumes you've created an Action secret with this name
+          TF_GPG_KEY_ID: ${{ secrets.TFCLOUD_GPG_KEY_ID }} # this assumes you've created an Action secret with this name
+          TF_REGISTRY_NAME: private
+          TF_ORGANIZATION_NAME: myorg
+          TF_NAMESPACE: myorg
+          TF_PROVIDER_NAME: myprovider
+```
