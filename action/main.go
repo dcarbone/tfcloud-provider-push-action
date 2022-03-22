@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dcarbone/go-tfc"
 	"github.com/google/go-github/v43/github"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-multierror"
@@ -22,7 +23,6 @@ const (
 	GithubRequestTTLDefault  = "5s"
 	GithubDownloadTTLDefault = "5m"
 
-	TFAddressDefault           = "https://app.terraform.io"
 	TFRegistryNameDefault      = "private"
 	TFProviderPlatformsDefault = "6.0"
 	TFRequestTTLDefault        = "5s"
@@ -102,7 +102,7 @@ func defaultConfig() *Config {
 	c := Config{
 		GithubRequestTTL:    GithubRequestTTLDefault,
 		GithubDownloadTTL:   GithubDownloadTTLDefault,
-		TFAddress:           TFAddressDefault,
+		TFAddress:           tfc.DefaultAddress,
 		TFRegistryName:      TFRegistryNameDefault,
 		TFProviderPlatforms: TFProviderPlatformsDefault,
 		TFRequestTTL:        TFRequestTTLDefault,
@@ -209,17 +209,17 @@ func main() {
 
 func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config) {
 	var (
-		tfc *TFClient
-		ghc *github.Client
-		pv  *TFCreateProviderVersionResponse
-		err error
+		tfClient *tfc.Client
+		ghc      *github.Client
+		pv       *tfc.CreateProviderVersionResponse
+		err      error
 	)
 
 	defer func() {
 		done <- err
 	}()
 
-	if tfc, err = NewTFClient(cfg); err != nil {
+	if tfClient, err = tfc.NewClient(nil); err != nil {
 		err = fmt.Errorf("error constructing TFClient: %w", err)
 		return
 	}
@@ -237,11 +237,11 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 
 	log.Debug().Msg("Release context parsed")
 
-	pvc := NewTFCreateProviderVersionRequest(cfg.providerVersion(), cfg.TFGPGKeyID, cfg.tfProviderPlatforms)
+	pvc := tfc.NewCreateProviderVersionRequest(cfg.providerVersion(), cfg.TFGPGKeyID, cfg.tfProviderPlatforms)
 	{
 		ctx, cancel := cfg.tfRequestContext(ctx)
 		defer cancel()
-		pv, err = tfc.ProviderClient().CreateProviderVersion(ctx, cfg.TFOrganizationName, cfg.TFRegistryName, cfg.TFNamespace, cfg.TFProviderName, pvc)
+		pv, err = tfClient.ProviderClient().CreateProviderVersion(ctx, cfg.TFToken, cfg.TFOrganizationName, cfg.TFRegistryName, cfg.TFNamespace, cfg.TFProviderName, pvc)
 		if err != nil {
 			err = fmt.Errorf("error creating new provider version: %w", err)
 			return
@@ -250,10 +250,10 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 
 	log.Info().Msg("Provider version created")
 
-	fileData := TFFileUploadRequest{
+	fileData := tfc.FileUploadRequest{
 		File:        bytes.NewBuffer(rc.Shasum.Bytes),
 		Destination: pv.Data.Links.ShasumsUpload,
-		ContentType: binaryOctetStream,
+		ContentType: "binary/octet-stream",
 		Filename:    rc.Shasum.Filename,
 	}
 
@@ -261,17 +261,17 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 	{
 		ctx, cancel := cfg.tfUploadContext(ctx)
 		defer cancel()
-		if err = tfc.UploadsClient().UploadFile(ctx, fileData); err != nil {
+		if err = tfc.UploadArtifact(ctx, fileData); err != nil {
 			err = fmt.Errorf("error uploading %s file: %w", rc.Shasum.Filename, err)
 			return
 		}
 
 	}
 
-	fileData = TFFileUploadRequest{
+	fileData = tfc.FileUploadRequest{
 		File:        bytes.NewBuffer(rc.ShasumSig.Bytes),
 		Destination: pv.Data.Links.ShasumsSigUpload,
-		ContentType: binaryOctetStream,
+		ContentType: "binary/octet-stream",
 		Filename:    rc.ShasumSig.Filename,
 	}
 
@@ -279,7 +279,7 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 	{
 		ctx, cancel := cfg.tfUploadContext(ctx)
 		defer cancel()
-		if err = tfc.UploadsClient().UploadFile(ctx, fileData); err != nil {
+		if err = tfc.UploadArtifact(ctx, fileData); err != nil {
 			err = fmt.Errorf("error uploading %q file: %w", rc.ShasumSig.Filename, err)
 			return
 		}
@@ -295,7 +295,7 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 
 	for _, pa := range rc.ProviderArtifacts {
 		log := log.With().Str("provider-artifact", *pa.Asset.Name).Logger()
-		go uploadProviderBinary(ctx, log, tfc, ghc, pa, cfg, wg, errc)
+		go uploadProviderBinary(ctx, log, tfClient, ghc, pa, cfg, wg, errc)
 	}
 
 	wg.Wait()
@@ -312,7 +312,7 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 func uploadProviderBinary(
 	ctx context.Context,
 	log zerolog.Logger,
-	tfc *TFClient,
+	tfClient *tfc.Client,
 	ghc *github.Client,
 	pa ProviderArtifact,
 	cfg *Config,
@@ -321,30 +321,35 @@ func uploadProviderBinary(
 ) {
 
 	var (
-		rdr io.Reader
-		pvf *TFCreateProviderVersionPlatformResponse
+		rdr io.ReadCloser
+		pvf *tfc.CreateProviderVersionPlatformResponse
 		err error
 	)
 
 	// queue up cleanup
 	defer func() {
+		if rdr != nil {
+			drainReader(rdr)
+		}
 		errc <- err
 		wg.Done()
 	}()
 
 	log.Info().Msg("Creating provider version platform...")
 
-	pvfc := NewTFCreateProviderVersionPlatformRequest(
-		pa.ShasumFileEntry.OS,
-		pa.ShasumFileEntry.Arch,
-		pa.ShasumFileEntry.Shasum,
-		pa.ShasumFileEntry.Filename,
-	)
 	{
+		pvfc := tfc.NewCreateProviderVersionPlatformRequest(
+			pa.ShasumFileEntry.OS,
+			pa.ShasumFileEntry.Arch,
+			pa.ShasumFileEntry.Shasum,
+			pa.ShasumFileEntry.Filename,
+		)
+		
 		ctx, cancel := cfg.tfRequestContext(ctx)
 		defer cancel()
-		pvf, err = tfc.ProviderClient().CreateProviderVersionPlatform(
+		pvf, err = tfClient.ProviderClient().CreateProviderVersionPlatform(
 			ctx,
+			cfg.TFToken,
 			cfg.TFOrganizationName,
 			cfg.TFRegistryName,
 			cfg.TFNamespace,
@@ -360,29 +365,29 @@ func uploadProviderBinary(
 
 	log.Info().Msg("Preparing to upload provider binary...")
 
-	dlctx, dlcancel := cfg.ghDownloadContext(ctx)
-	defer dlcancel()
-	rdr, _, err = ghc.Repositories.DownloadReleaseAsset(dlctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), pa.Asset.GetID(), cleanhttp.DefaultClient())
-	if err != nil {
-		err = fmt.Errorf("error initiating download of release asset %q: %w", pa.ShasumFileEntry.Filename, err)
-		return
+	{
+		ctx, cancel := cfg.ghDownloadContext(ctx)
+		defer cancel()
+		rdr, _, err = ghc.Repositories.DownloadReleaseAsset(ctx, cfg.GithubRepositoryOwner, cfg.githubRepository(), pa.Asset.GetID(), cleanhttp.DefaultClient())
+		if err != nil {
+			err = fmt.Errorf("error initiating download of release asset %q: %w", pa.ShasumFileEntry.Filename, err)
+			return
+		}
 	}
 
-	if rdr != nil {
-		defer drainReader(rdr)
-	}
-
-	fileData := TFFileUploadRequest{
-		File:        rdr,
-		Destination: pvf.Data.Links.ProviderBinaryUpload,
-		ContentType: binaryOctetStream,
-		Filename:    pa.ShasumFileEntry.Filename,
-	}
-	ulctx, ulcancel := cfg.tfUploadContext(ctx)
-	defer ulcancel()
-	if err = tfc.UploadsClient().UploadFile(ulctx, fileData); err != nil {
-		err = fmt.Errorf("error uploading provider binary %q: %w", pa.ShasumFileEntry.Filename, err)
-		return
+	{
+		fileData := tfc.FileUploadRequest{
+			File:        rdr,
+			Destination: pvf.Data.Links.ProviderBinaryUpload,
+			ContentType: "binary/octet-stream",
+			Filename:    pa.ShasumFileEntry.Filename,
+		}
+		ctx, cancel := cfg.tfUploadContext(ctx)
+		defer cancel()
+		if err = tfc.UploadArtifact(ctx, fileData); err != nil {
+			err = fmt.Errorf("error uploading provider binary %q: %w", pa.ShasumFileEntry.Filename, err)
+			return
+		}
 	}
 
 	log.Info().Msg("Provider binary successfully uploaded!")
