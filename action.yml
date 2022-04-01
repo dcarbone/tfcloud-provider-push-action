@@ -1,6 +1,10 @@
 name: "Terraform Cloud Provider Push"
 description: "Very quickly made action to push goreleaser assets from a Github release to a private Terraform Cloud provider registry"
 
+branding:
+  icon: archive
+  color: purple
+
 runs:
   using: docker
   image: Dockerfile
