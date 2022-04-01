@@ -1,4 +1,4 @@
-# tfcloud-provider-push-action
+# Terraform Cloud Provider Push Action
 A basic action to push a custom [Terraform](https://www.terraform.io/) 
 [Provider Plugin](https://www.hashicorp.com/blog/writing-custom-terraform-providers) to a Terraform Cloud private
 registry.
