@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/action"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "gomod"
+    directory: "/action"
+    schedule:
+      interval: "daily"
