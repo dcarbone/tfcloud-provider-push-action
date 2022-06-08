@@ -4,11 +4,11 @@ go 1.17
 
 require (
 	github.com/dcarbone/go-tfc v0.0.0-20220322162744-1ba33c6ca9c2
-	github.com/google/go-github/v43 v43.0.0
+	github.com/google/go-github/v44 v44.0.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/rs/zerolog v1.26.1
-	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
+	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
 )
 
 require (

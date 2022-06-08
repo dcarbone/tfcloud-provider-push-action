@@ -4,9 +4,9 @@ github.com/dcarbone/go-tfc
 # github.com/golang/protobuf v1.4.2
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
-# github.com/google/go-github/v43 v43.0.0
+# github.com/google/go-github/v44 v44.0.0
 ## explicit; go 1.17
-github.com/google/go-github/v43/github
+github.com/google/go-github/v44/github
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
@@ -37,7 +37,7 @@ golang.org/x/crypto/openpgp/s2k
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
-# golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
+# golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
 ## explicit; go 1.11
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
