@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine3.15 as build
+FROM golang:1.18-alpine3.16 as build
 
 RUN apk add --update --no-cache \
     ca-certificates
@@ -7,7 +7,7 @@ COPY action /tmp/build/action
 
 RUN cd /tmp/build/action && go build -mod=vendor -o tfcloud-provider-push-action
 
-FROM alpine:3.15
+FROM alpine:3.16
 
 RUN apk add --update --no-cache \
     ca-certificates \
