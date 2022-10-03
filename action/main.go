@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/dcarbone/go-tfc"
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v47/github"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-multierror"
 	"github.com/rs/zerolog"
@@ -344,7 +344,7 @@ func uploadProviderBinary(
 			pa.ShasumFileEntry.Shasum,
 			pa.ShasumFileEntry.Filename,
 		)
-		
+
 		ctx, cancel := cfg.tfRequestContext(ctx)
 		defer cancel()
 		pvf, err = tfClient.ProviderClient().CreateProviderVersionPlatform(

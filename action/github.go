@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v47/github"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
