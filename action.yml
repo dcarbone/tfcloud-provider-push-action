@@ -9,6 +9,12 @@ inputs:
   tf-organization:
     required: true
     description: "Name of Terraform organization"
+  tf-token:
+    required: true
+    description: "Terraform API Token"
+  tf-gpg-key-id:
+    required: true
+    description: "ID of GPG key used to sign provider binary"
   tf-namespace:
     required: true
     description: "Name of Terraform namespace"
@@ -16,33 +22,35 @@ inputs:
     required: true
     description: "Name of this provider"
   tf-address:
-    required: true
+    required: false
     default: "https://app.terraform.io"
     description: "Scheme, domain, and optionally port, of Terraform Cloud / Enterprise instance"
   tf-registry-name:
-    required: true
+    required: false
     default: "private"
     description: "Name of Terraform Cloud registry to push to.  Defaults to \"private\"."
   tf-provider-platforms:
-    required: true
+    required: false
     default: "6.0"
     description: "Comma-separated list of platform versions supported by your Provider implementation."
-
   tf-request-ttl:
-    required: true
+    required: false
     default: "5s"
     description: "TTL for Terraform API requests"
   tf-upload-ttl:
-    required: true
+    required: false
     default: "5m"
     description: "TTL for Terraform artifact upload requests"
 
-  gh-request-ttl:
+  gh-token:
     required: true
+    description: "GitHub token"
+  gh-request-ttl:
+    required: false
     default: "5s"
     description: "TTL for GitHub API requests"
   gh-download-ttl:
-    required: true
+    required: false
     default: "5m"
     description: "TTL for GitHub artifact download requests"
 
@@ -50,13 +58,16 @@ runs:
   using: docker
   image: Dockerfile
   env:
-    TF_ADDRESS: ${{ inputs.tf-address }}
-    TF_REGISTRY_NAME: ${{ inputs.tf-registry-name }}
-    TF_ORGANIZATION_NAME: ${{ inputs.tf-organization }}
-    TF_NAMESPACE: ${{ inputs.tf-namespace }}
-    TF_PROVIDER_NAME: ${{ inputs.tf-provider-name }}
-    TF_PROVIDER_PLATFORMS: ${{ inputs.tf-provider-platforms }}
-    TF_REQUEST_TTL: ${{ inputs.tf-request-ttl }}
-    TF_UPLOAD_TTL: ${{ inputs.tf-upload-ttl }}
-    GITHUB_REQUEST_TTL: ${{ inputs.github-request-ttl }}
-    GITHUB_DOWNLOAD_TTL: ${{ inputs.github-download-ttl }}
+    TF_ADDRESS: '${{ inputs.tf-address }}'
+    TF_TOKEN: '${{ inputs.tf-token }}'
+    TF_GPG_KEY_ID: '${{ inputs.tf-gpg-key-id }}'
+    TF_REGISTRY_NAME: '${{ inputs.tf-registry-name }}'
+    TF_ORGANIZATION_NAME: '${{ inputs.tf-organization }}'
+    TF_NAMESPACE: '${{ inputs.tf-namespace }}'
+    TF_PROVIDER_NAME: '${{ inputs.tf-provider-name }}'
+    TF_PROVIDER_PLATFORMS: '${{ inputs.tf-provider-platforms }}'
+    TF_REQUEST_TTL: '${{ inputs.tf-request-ttl }}'
+    TF_UPLOAD_TTL: '${{ inputs.tf-upload-ttl }}'
+    GITHUB_TOKEN: '${{ inputs.gh-token }}'
+    GITHUB_REQUEST_TTL: '${{ inputs.github-request-ttl }}'
+    GITHUB_DOWNLOAD_TTL: '${{ inputs.github-download-ttl }}'
