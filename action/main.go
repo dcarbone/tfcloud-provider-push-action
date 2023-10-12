@@ -265,7 +265,6 @@ func run(ctx context.Context, done chan<- error, log zerolog.Logger, cfg *Config
 			err = fmt.Errorf("error uploading %s file: %w", rc.Shasum.Filename, err)
 			return
 		}
-
 	}
 
 	fileData = tfc.FileUploadRequest{
