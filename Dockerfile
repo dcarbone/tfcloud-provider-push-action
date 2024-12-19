@@ -7,7 +7,7 @@ COPY action /tmp/build/action
 
 RUN cd /tmp/build/action && go build -mod=vendor -o tfcloud-provider-push-action
 
-FROM alpine:3.16
+FROM alpine:3.21
 
 RUN apk add --update --no-cache \
     ca-certificates \
